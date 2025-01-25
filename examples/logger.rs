@@ -52,6 +52,7 @@ fn main() {
     // Frame { context: {"context3": "value3", "context1": "value1"}, value: "Third log" }
     // Frame { context: {"context2": "value2", "context1": "value1"}, value: "Second log" }
     // Frame { context: {"context1": "value1"}, value: "first log" }
+    should_fail_compilation();
 }
 
 fn context2() {
@@ -61,4 +62,18 @@ fn context2() {
 fn context3() {
     let _handle = add_ctx("context3", "value3").expect("");
     write("Third log".into());
+}
+
+
+fn should_fail_compilation() {
+    let _handle = {
+        let ctx1 = {
+            add_ctx("outer context", "outer").expect("")
+        };
+        let ctx2 = {
+            add_ctx("inner context", "inner")
+        };
+        ctx2
+    };
+    write("should break before this prints".into());
 }
