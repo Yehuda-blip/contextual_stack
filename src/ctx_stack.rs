@@ -86,12 +86,11 @@ impl<T: Debug + Clone> CtxStack<T> {
     }
 
     pub fn write(&mut self, value: T) {
-        println!("{self:?}");
         self.tail().push(Write::Value(value));
     }
 
     pub fn get_all<'a>(&'a self) -> CtxStackIterator<'a, T> {
-        CtxStackIterator {root_iter: self.root.iter().rev(), stack_ctx: vec![]}
+        CtxStackIterator::new(self)
     }
 }
 
@@ -110,6 +109,23 @@ struct CtxIterator<'a, T: Debug + Clone> {
 pub struct CtxStackIterator<'a, T: Debug + Clone> {
     root_iter: Rev<<&'a Vec<Write<T>> as IntoIterator>::IntoIter>,
     stack_ctx: Vec<CtxIterator<'a, T>>,
+}
+
+impl<'a, T: Debug + Clone> CtxStackIterator<'a, T> {
+    fn new(stack: &'a CtxStack<T>) -> Self {
+        CtxStackIterator {
+            root_iter: stack.root.iter().rev(),
+            stack_ctx: stack
+                .stack
+                .iter()
+                .map(|ctx| CtxIterator {
+                    name: &ctx.name,
+                    value: &ctx.value,
+                    iter: ctx.children.iter().rev(),
+                })
+                .collect(),
+        }
+    }
 }
 
 impl<'a, T: Debug + Clone> Iterator for CtxStackIterator<'a, T> {

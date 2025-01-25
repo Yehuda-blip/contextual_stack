@@ -23,13 +23,6 @@ unsafe fn get_logger() -> &'static mut Logger {
     }
 }
 
-// macro_rules! add_ctx {
-//     ($name:literal, $value:literal) => {
-//         let logs = &mut unsafe{&*LOGGER.get()};
-//         let _handle = logs.push_context($name.to_owned(), $value.to_owned());
-//     };
-// }
-
 fn add_ctx(name: &str, value: &str) -> Result<ContextHandle<'static, String>, ContextError> {
     let logger = unsafe { get_logger() };
     let handle = logger.logs.push_context(name.to_owned(), value.to_owned());
@@ -48,18 +41,24 @@ fn print_logs() {
     }
 }
 
-// macro_rules! write {
-//     ($log:expr) => {
-//         let logs = &mut unsafe{&*LOGGER}.borrow_mut().logs;
-//         logs.
-//     };
-// }
-
 fn main() {
-    // add_ctx!("context1", "the_first_value");
     println!("running");
-    let handle = add_ctx("context1", "value1").expect("");
+    let _handle = add_ctx("context1", "value1").expect("");
     write("first log".into());
-    drop(handle);
+    context2();
+    context3();
     print_logs();
+    // prints:
+    // Frame { context: {"context3": "value3", "context1": "value1"}, value: "Third log" }
+    // Frame { context: {"context2": "value2", "context1": "value1"}, value: "Second log" }
+    // Frame { context: {"context1": "value1"}, value: "first log" }
+}
+
+fn context2() {
+    let _handle = add_ctx("context2", "value2").expect("");
+    write("Second log".into());
+}
+fn context3() {
+    let _handle = add_ctx("context3", "value3").expect("");
+    write("Third log".into());
 }
