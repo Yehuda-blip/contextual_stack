@@ -1,4 +1,7 @@
 pub mod ctx_stack;
+pub mod hidden_push_api;
+
+pub use ctx_stack::CtxStack;
 
 #[cfg(test)]
 mod tests {

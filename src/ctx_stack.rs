@@ -60,7 +60,7 @@ impl<C: Context, T: Value> CtxStack<C, T> {
         }
     }
 
-    pub fn push_context<'a>(
+    pub(crate) fn push_context<'a>(
         &'a mut self,
         name: String,
         ctx: C
