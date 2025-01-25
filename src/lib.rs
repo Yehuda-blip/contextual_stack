@@ -8,7 +8,7 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let stc = CtxStack::<i32>::new();
+        let stc = CtxStack::<i32, i32>::new();
         print!("{stc:?}")
     }
 }

@@ -1,53 +1,59 @@
-use std::{collections::HashMap, fmt::Debug, iter::Rev};
+use std::{collections::{HashMap, HashSet}, fmt::Debug, hash::Hash, iter::Rev};
+
+pub trait Context: Debug + Hash {}
+impl<T: Debug + Hash> Context for T {}
+pub trait Value: Debug + Clone {}
+impl<T: Debug + Clone> Value for T {}
 
 #[derive(Debug, Clone)]
-enum Write<T: Debug + Clone> {
+enum Write<C: Context, T: Value> {
     Value(T),
-    Ctx(Ctx<T>),
+    Ctx(Ctx<C, T>),
 }
 
 #[derive(Debug, Clone)]
-struct Ctx<T: Debug + Clone> {
-    name: String,
-    value: String,
-    children: Vec<Write<T>>,
+pub struct Ctx<C: Context, T: Value> {
+    pub name: String,
+    pub context: C,
+    children: Vec<Write<C, T>>,
 }
 
 #[derive(Debug)]
-pub struct ContextHandle<'a, T: Debug + Clone> {
+pub struct ContextHandle<'a, C: Context, T: Value> {
     ctx_name: String,
-    stack: &'a mut CtxStack<T>,
+    stack: &'a mut CtxStack<C, T>,
 }
 
-impl<'a, T: Debug + Clone> Drop for ContextHandle<'a, T> {
+impl<'a, C: Context, T: Value> Drop for ContextHandle<'a, C, T> 
+    where {
     fn drop(&mut self) {
         self.stack.pop_context(&self.ctx_name);
     }
 }
 
 #[derive(Debug)]
-pub struct CtxStack<T: Debug + Clone> {
-    root: Vec<Write<T>>,
-    stack: Vec<Ctx<T>>,
-    context: HashMap<String, String>,
+pub struct CtxStack<C: Context, T: Value> {
+    root: Vec<Write<C, T>>,
+    stack: Vec<Ctx<C, T>>,
+    context: HashSet<String>,
 }
 
 #[derive(Debug, Clone)]
-pub enum ContextError {
-    ContextOverwrite { name: String, value: String },
+pub enum ContextError<C: Context> {
+    ContextOverwrite { name: String, ctx: C },
 }
 
-impl<T: Debug + Clone> CtxStack<T> {
-    pub fn new() -> CtxStack<T> {
+impl<C: Context, T: Value> CtxStack<C, T> {
+    pub fn new() -> CtxStack<C, T> {
         return CtxStack {
             root: vec![],
             stack: vec![],
-            context: HashMap::new(),
+            context: HashSet::new(),
         };
     }
 
     #[inline]
-    fn tail(&mut self) -> &mut Vec<Write<T>> {
+    fn tail(&mut self) -> &mut Vec<Write<C, T>> {
         match &mut self.stack[..] {
             [] => &mut self.root,
             [.., tail] => &mut tail.children,
@@ -57,15 +63,15 @@ impl<T: Debug + Clone> CtxStack<T> {
     pub fn push_context<'a>(
         &'a mut self,
         name: String,
-        value: String,
-    ) -> Result<ContextHandle<'a, T>, ContextError> {
-        if self.context.contains_key(&name) {
-            return Err(ContextError::ContextOverwrite { name, value });
+        ctx: C
+    ) -> Result<ContextHandle<'a, C, T>, ContextError<C>> {
+        if self.context.contains(&name) {
+            return Err(ContextError::ContextOverwrite { name, ctx });
         }
-        self.context.insert(name.clone(), value.clone());
+        self.context.insert(name.clone());
         let ctx = Ctx {
             name: name.clone(),
-            value,
+            context: ctx,
             children: vec![],
         };
         self.stack.push(ctx);
@@ -89,30 +95,30 @@ impl<T: Debug + Clone> CtxStack<T> {
         self.tail().push(Write::Value(value));
     }
 
-    pub fn get_all<'a>(&'a self) -> CtxStackIterator<'a, T> {
+    pub fn get_all<'a>(&'a self) -> CtxStackIterator<'a, C, T> {
         CtxStackIterator::new(self)
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct Frame<'a, T> {
-    pub context: HashMap<&'a str, &'a str>,
+pub struct Frame<'a, C: Context, T: Value> {
+    pub context: HashMap<&'a str, &'a C>,
     pub value: &'a T,
 }
 
-struct CtxIterator<'a, T: Debug + Clone> {
+struct CtxIterator<'a, C: Context, T: Value> {
     name: &'a str,
-    value: &'a str,
-    iter: Rev<<&'a Vec<Write<T>> as IntoIterator>::IntoIter>,
+    ctx: &'a Ctx<C, T>,
+    iter: Rev<<&'a Vec<Write<C, T>> as IntoIterator>::IntoIter>,
 }
 
-pub struct CtxStackIterator<'a, T: Debug + Clone> {
-    root_iter: Rev<<&'a Vec<Write<T>> as IntoIterator>::IntoIter>,
-    stack_ctx: Vec<CtxIterator<'a, T>>,
+pub struct CtxStackIterator<'a, C: Context, T: Value> {
+    root_iter: Rev<<&'a Vec<Write<C, T>> as IntoIterator>::IntoIter>,
+    stack_ctx: Vec<CtxIterator<'a, C, T>>,
 }
 
-impl<'a, T: Debug + Clone> CtxStackIterator<'a, T> {
-    fn new(stack: &'a CtxStack<T>) -> Self {
+impl<'a, C: Context, T: Value> CtxStackIterator<'a, C, T> {
+    fn new(stack: &'a CtxStack<C, T>) -> Self {
         CtxStackIterator {
             root_iter: stack.root.iter().rev(),
             stack_ctx: stack
@@ -120,7 +126,7 @@ impl<'a, T: Debug + Clone> CtxStackIterator<'a, T> {
                 .iter()
                 .map(|ctx| CtxIterator {
                     name: &ctx.name,
-                    value: &ctx.value,
+                    ctx,
                     iter: ctx.children.iter().rev(),
                 })
                 .collect(),
@@ -128,8 +134,8 @@ impl<'a, T: Debug + Clone> CtxStackIterator<'a, T> {
     }
 }
 
-impl<'a, T: Debug + Clone> Iterator for CtxStackIterator<'a, T> {
-    type Item = Frame<'a, T>;
+impl<'a, C: Context, T: Value> Iterator for CtxStackIterator<'a, C, T> {
+    type Item = Frame<'a, C, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match &mut self.stack_ctx[..] {
@@ -142,7 +148,7 @@ impl<'a, T: Debug + Clone> Iterator for CtxStackIterator<'a, T> {
                 Some(Write::Ctx(ctx)) => {
                     self.stack_ctx.push(CtxIterator {
                         name: &ctx.name,
-                        value: &ctx.value,
+                        ctx,
                         iter: ctx.children.iter().rev(),
                     });
                     self.next()
@@ -153,14 +159,14 @@ impl<'a, T: Debug + Clone> Iterator for CtxStackIterator<'a, T> {
                     context: self
                         .stack_ctx
                         .iter()
-                        .map(|ctx| (ctx.name, ctx.value))
+                        .map(|ctx| (ctx.name, &ctx.ctx.context))
                         .collect(),
                     value: val,
                 }),
                 Some(Write::Ctx(ctx)) => {
                     self.stack_ctx.push(CtxIterator {
                         name: &ctx.name,
-                        value: &ctx.value,
+                        ctx,
                         iter: ctx.children.iter().rev(),
                     });
                     self.next()

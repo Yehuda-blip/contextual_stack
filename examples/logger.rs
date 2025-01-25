@@ -3,7 +3,7 @@ use std::cell::UnsafeCell;
 use contextual_stack::ctx_stack::{ContextError, ContextHandle, CtxStack};
 
 struct Logger {
-    logs: CtxStack<String>,
+    logs: CtxStack<String, String>,
 }
 
 static mut LOGGER: UnsafeCell<Option<Logger>> = UnsafeCell::new(None);
@@ -23,7 +23,7 @@ unsafe fn get_logger() -> &'static mut Logger {
     }
 }
 
-fn add_ctx(name: &str, value: &str) -> Result<ContextHandle<'static, String>, ContextError> {
+fn add_ctx(name: &str, value: &str) -> Result<ContextHandle<'static, String, String>, ContextError<String>> {
     let logger = unsafe { get_logger() };
     let handle = logger.logs.push_context(name.to_owned(), value.to_owned());
     handle
