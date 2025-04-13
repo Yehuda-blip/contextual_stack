@@ -1,5 +1,4 @@
 pub mod ctx_stack;
-pub mod hidden_push_api;
 
 pub use ctx_stack::CtxStack;
 
@@ -11,7 +10,7 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let stc = CtxStack::<i32, i32>::new();
+        let stc = CtxStack::<i32, f64, f64>::new();
         print!("{stc:?}")
     }
 }

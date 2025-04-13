@@ -1,11 +1,12 @@
 extern crate contextual_stack;
 use std::cell::UnsafeCell;
+use std::time::SystemTime;
 
 use contextual_stack::CtxStack;
-use contextual_stack::push_context;
+use contextual_stack::ctx_stack::StackHandle;
 
 struct Logger {
-    logs: CtxStack<String, String>,
+    logs: CtxStack<SystemTime, String, String>,
 }
 
 static mut LOGGER: UnsafeCell<Option<Logger>> = UnsafeCell::new(None);
@@ -25,18 +26,10 @@ unsafe fn get_logger() -> &'static mut Logger {
     }
 }
 
-// fn add_ctx(name: &str, value: &str) -> Result<ContextHandle<'static, String, String>, ContextError<String>> {
-//     let logger = unsafe { get_logger() };
-//     let handle = logger.logs.push_context(name.to_owned(), value.to_owned());
-//     handle
-// }
-
-macro_rules! add_ctx {
-    ($name:expr, $value:expr, $put_err:ident) => {
+macro_rules! ctx {
+    ($ctx:expr) => {
         let logger = unsafe { get_logger() };
-        let logs = &mut logger.logs;
-        let (name, value) = ($name, $value);
-        push_context!(logs, name, value, $put_err)
+        let _handle = logger.logs.push_context(SystemTime::now(), $ctx);
     };
 }
 
@@ -54,8 +47,6 @@ fn print_logs() {
 
 fn main() {
     println!("running");
-    let put_err = &mut Ok(());
-    add_ctx!("context1".into(), "value1".into(), put_err);
     write("first log".into());
     context2();
     context3();
@@ -79,37 +70,17 @@ fn main() {
 }
 
 fn context2() {
-    let put_err = &mut Ok(());
-    add_ctx!("context2".into(), "value2".into(), put_err);
-    if let Err(e) = put_err {
-        panic!("{e:?}")
-    }
+    ctx!("context2".into());
     write("Second log".into());
 }
 fn context3() {
-    let put_err = &mut Ok(());
-    add_ctx!("context3".into(), "value3".into(), put_err);
-    if let Err(e) = put_err {
-        panic!("{e:?}")
-    }
+    ctx!("context3".into());
     write("Third log".into());
 }
 fn context_loop() {
-    let put_err = &mut Ok(());
-    add_ctx!(
-        "outer loop context".into(),
-        "outer_context_value".into(),
-        put_err
-    );
-    if let Err(e) = put_err {
-        panic!("{e:?}")
-    }
+    ctx!("outer loop context".into());
     for i in 4..6 {
-        let put_err = &mut Ok(());
-        add_ctx!(format!("context{i}"), format!("value{i}"), put_err);
-        if let Err(e) = put_err {
-            panic!("{e:?}")
-        }
+        ctx!(format!("context{i}"));
         write(format!("writing in context {i}"));
     }
 }
