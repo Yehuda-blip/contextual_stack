@@ -2,6 +2,7 @@
 macro_rules! global_context {
     ($name:tt {$ctx:ty, $val:ty}) => {
         pub mod $name {
+
             use std::cell::UnsafeCell;
 
             use contextual_stack::{
@@ -24,6 +25,13 @@ macro_rules! global_context {
                     }
                     (*GLOBAL_STACK.get()).as_mut().unwrap()
                 }
+            }
+
+            pub fn __unprotected_push(ctx: C) -> Result<
+            contextual_stack::ctx_stack::ContextHandle<'static, C, T>,
+                contextual_stack::ctx_stack::ContextError<C>,
+            > {
+                get().push_context(ctx)
             }
 
             pub fn with_ctx<O, F> (
@@ -52,4 +60,14 @@ macro_rules! global_context {
             }
         }
     };
+    ($name:tt {$ctx:ty, $val:ty} with unchecked as $unchecked_name:tt) => {
+        #[macro_export]
+        macro_rules! $unchecked_name {
+            ($context:expr) => {
+                std::pin::pin!($name::__unprotected_push($context))
+            }
+        }
+
+        global_context!{$name {$ctx, $val}}
+    }
 }
