@@ -31,7 +31,8 @@ fn call_chain_1() {
 
 fn call_chain_2() {
     let state = -(Instant::now().elapsed().as_micros() as i32 + 1);
-    let _handle = logger_ctx_unchecked!(format!("call chain 2 state = {state}"));
+    let Ok(_handle) = logger_ctx_unchecked!(format!("call chain 2 state = {state}"))
+    else {panic!("bad ctx")};
     println!("final product = {}", compute(state));
 }
 

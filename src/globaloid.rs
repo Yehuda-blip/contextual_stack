@@ -64,7 +64,7 @@ macro_rules! global_context {
         #[macro_export]
         macro_rules! $unchecked_name {
             ($context:expr) => {
-                std::pin::pin!($name::__unprotected_push($context))
+                &$name::__unprotected_push($context)
             }
         }
 
