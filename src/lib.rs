@@ -1,18 +1,8 @@
-pub mod ctx_stack;
-pub mod globaloid; 
+pub mod global_context;
+pub mod contexter;
 
-pub use ctx_stack::CtxStack;
-pub use ctx_stack::StackHandle;
+pub use contexter::Contexter;
 
 #[cfg(test)]
 mod tests {
-    use ctx_stack::CtxStack;
-
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let stc = CtxStack::<i32, f64>::new();
-        print!("{stc:?}")
-    }
 }
